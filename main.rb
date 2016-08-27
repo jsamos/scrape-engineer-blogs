@@ -2,33 +2,36 @@ require 'rubygems'
 require 'simple-rss'
 require 'open-uri'
 
+blacklist = ['https://rainsoft.io/rss/']
 year = 2016
 month = 8
-day = 24
-hour = 0
+day = 26
 posts = {}
 
 
 def get_feed(url)
   begin
-    timeout(3) do
+    timeout(10) do
       p "Trying #{url}"
       open(url)
     end
   rescue
     p "Failed to read: #{url}"
+    nil
   end
 end
 
-def get_recent_posts(feed, year, month, day, hour, collector)
+def get_recent_posts(feed, year, month, day, collector)
   begin
-    p "Parsing feed articles"
     rss = SimpleRSS.parse feed
+    blog_title = rss.channel.title
+    p "Parsing feed articles from #{blog_title}"
 
     rss.items.each do |item|
-      if item.pubDate.is_a?(Time) && (item.pubDate >= Time.new(year, month, day, hour, 0, 0))
+      if item.pubDate.is_a?(Time) && (item.pubDate >= Time.new(year, month, day, 0, 0, 0)) && (item.pubDate <= Time.new(year, month, day, 23, 59, 59))
         p "Found Article: #{item.title}"
         collector[item.pubDate] = item
+        collector[item.pubDate][:blog_title] = blog_title if blog_title
       end
     end
   rescue StandardError => e
@@ -42,19 +45,19 @@ matches = opml_contents.scan(/xmlUrl=\".*?\"/)
 
 p 'Collecting Articles'
 matches[2..-1].each do |feed_url|
+  next if blacklist.include? feed_url
   feed = get_feed(feed_url)
-  get_recent_posts(feed, year, month, day, hour, posts)
+  get_recent_posts(feed, year, month, day, posts) if feed
 end
 
 p 'Creating contents'
 contents = ''
 posts.keys.compact.sort.reverse.each do |post_date|
   begin
-    contents += "<p>#{posts[post_date][:pubDate]}: <a href='#{posts[post_date][:link]}'>#{posts[post_date][:title]}</a></p>"
+    contents += "<p>#{posts[post_date][:blog_title]}: <a target='_blank' href='#{posts[post_date][:link]}'>#{posts[post_date][:title]}</a></p>"
   rescue
   end
 end
 
 p 'Writing file'
 File.open("#{year}-#{month}-#{day}.html", 'w') { |file| file.write(contents) }
-
