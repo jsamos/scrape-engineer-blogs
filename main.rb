@@ -5,7 +5,7 @@ require 'open-uri'
 blacklist = ['https://rainsoft.io/rss/']
 year = 2016
 month = 8
-day = 26
+day = 31
 posts = {}
 
 
